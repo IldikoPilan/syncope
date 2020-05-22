@@ -41,10 +41,6 @@ def remove_info(text, journal_id, label, doc_type='inkomst'):
         if 'Problemstilling' in text:
             cleaned_text = re.sub('Problemstilling .* (?=Journal :)', '', cleaned_text)
             cleaned_text = re.sub('Problemstilling .* (?=Famil)', '', cleaned_text)
-        if journal_id == '6358467':
-            cleaned_text = re.sub('Diagnose : .* (?=.)', '', cleaned_text) 
-        #if 'Diagnose :' not in text:
-        #    print('no D: {} ({})'.format(journal_id, label))
     return cleaned_text
 
 def write_to_disk(parsed_data, pdata_folder, dataset_type, exclude_diagnosis=True):
