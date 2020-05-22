@@ -28,24 +28,27 @@ def fetch_data(sql, connect_info):
 def remove_info(text, journal_id, label, doc_type='inkomst'):
     """ Removes information from texts about diagnosis.
     """
-    if doc_type == 'epikris':
-        pass
-    else: # Innkomstjournal
-        if 'Journal :' in text:
-            cleaned_text = re.sub('Diagnose : .* (?=Journal :)', '', text)
-            cleaned_text = re.sub('Diagnose : .* (?=Famil)', '', cleaned_text)
-        elif 'Bakgrunn :' in text:
-            cleaned_text = re.sub('Diagnose : .* (?=Bakgrunn)', '', text)
-        else:
-            cleaned_text = re.sub('Diagnose : .* (?=Famil)', '', text)      # handles also Familei
-        if 'Problemstilling' in text:
-            cleaned_text = re.sub('Problemstilling .* (?=Journal :)', '', cleaned_text)
-            cleaned_text = re.sub('Problemstilling .* (?=Famil)', '', cleaned_text)
+    sections = text.split('NEWPAR')
+    cleaned_text = ''
+    diagnose_detected = False
+    for section in sections:
+        if section:
+            section_header =list(filter(None, section.split(' ')))[0]
+            #print(section_header)
+            if 'diagnose' in section_header.lower() or 'DIAGNOSE' in section or 'Diagnose :' in section or 'Problemstilling :' in section:
+                diagnose_detected = True
+            else:
+                cleaned_text += section + ' '
+    if not diagnose_detected :
+        print('No DIAGNOSE in: ', journal_id)
     return cleaned_text
 
 def write_to_disk(parsed_data, pdata_folder, dataset_type, exclude_diagnosis=True):
     start_time = time.time()
     dataset_folder = os.path.join(pdata_folder, dataset_type)
+    doc_type = 'inkomst'
+    if 'epikrise' in dataset_type.lower():
+        doc_type = 'epikrise'
     if dataset_type not in os.listdir(pdata_folder):
         os.mkdir(dataset_folder)
     labels = set(list(parsed_data.loc[:,'Beskrivelse']))
@@ -56,18 +59,20 @@ def write_to_disk(parsed_data, pdata_folder, dataset_type, exclude_diagnosis=Tru
             os.mkdir(os.path.join(dataset_folder, label))
     nr_saved = 0
     for i, row in parsed_data.iterrows():
+        
         journal_id = str(row['JOURNALID']).split('.')[0]
-        proc_text = row['JournalTextUDPipe']
+        #proc_text = row['JournalTextUDPipe']
+        proc_text = row['JournalTextUDPipe_newpar']
         label = row['Beskrivelse']
         if label == 'Negativ':
             label = 'Not_R55'
         class_folder = os.path.join(dataset_folder, label)
-        file_name = journal_id + '.txt' # handles Pandas conversion of IDs to float
+        file_name = journal_id + '.txt' # handles Pandas conversion of IDs to float (xxx.0)
         if file_name not in os.listdir(class_folder):
             with codecs.open(os.path.join(class_folder, file_name), 'w', 'utf-8') as f:
                 try:
                     if exclude_diagnosis:
-                        proc_text = remove_info(proc_text, journal_id, label)
+                        proc_text = remove_info(proc_text, journal_id, label, doc_type)
                     if proc_text:
                         f.write(proc_text)
                         nr_saved += 1
@@ -77,11 +82,13 @@ def write_to_disk(parsed_data, pdata_folder, dataset_type, exclude_diagnosis=Tru
                         f.close()
                         os.remove(os.path.join(class_folder, file_name))
                 except UnicodeEncodeError:
-                    print(file_name)      
+                    print(file_name)        # JOURNALID = 66476665 (Epi)
+        else:
+            print('File already exists and will not be overwritten. Delete / rename it and re-run.')
     print('Finished saving data in "%s"' % dataset_folder)
     SluttTid = time.time()
     print (round(SluttTid - start_time, 2), "Sekunder")
-
+    
 
 #########################
 # Stats on extracted data
