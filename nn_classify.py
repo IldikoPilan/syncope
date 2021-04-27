@@ -72,6 +72,28 @@ def evaluate(model, X_test, y_test, history, plot_history=True, class_report=Fal
         # Return the indices of the maximum values along an axis (1/-1 for horizontal)
         y_pred_1d_bool = y_pred.argmax(axis=-1) 
         print(classification_report(y_test, y_pred_1d_bool)) 
+
+def get_top_words(model, word_index, n=50, show=True):
+    """ Returns words with highest weights from 
+    the first (embedding) layer of the trained model. 
+    """
+    imps = {}
+    ix_to_w = {word_index[w]: w for w in word_index}
+    weights = model.layers[1].get_weights()
+    for word_ix in range(1,len(weights[0]-1)):
+        word = ix_to_w[word_ix]
+        weight = weights[0][word_ix]
+        max_weight = np.max(weight) #np.absolute(weight)
+        imps[word] = max_weight
+    if show:
+        print('-'*50)
+        print("Top %d words with highest weights:" % n)
+        print('-'*50)
+        print('{:<8} {:<20}'.format('Weight', 'Word'))
+        for w in sorted(imps, key=imps.get, reverse=True)[:n]:
+            imp = round(float(imps[w]), 3)
+            print('{:<8} {:<20}'.format(imp, w))
+    return imps
         
 def do_nn_classification(data_folder, model_type, embedding_dims, path_to_emb, trainable,
                          epochs, lower, categories, out_model=''):
